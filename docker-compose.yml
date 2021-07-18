@@ -1,0 +1,75 @@
+version: "3.9"
+   
+services:
+  postgresql:
+    container_name: postgresql
+    image: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./vol_postgresql_db:/var/lib/postgresql/data
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER=postgres
+      - POSTGRES_PASSWORD=postgres
+
+  django:
+    container_name: django
+    build:
+      context: ./docker/django/
+      dockerfile: Dockerfile-django
+    command: python3 /project/docker/django/docker-entrypoint.py
+    volumes:
+      - .:/project
+    ports:
+      - "8000:8000"
+    networks:
+      - default
+    depends_on:
+      - postgresql
+
+  node:
+    container_name: node
+    build:
+      context: ./docker/node/
+      dockerfile: Dockerfile-node
+    command: yarn serve
+    volumes:
+      - .:/project
+    ports:
+      - "8080:8080"
+    networks:
+      - default
+
+  orion:
+    image: fiware/orion:3.0.0
+    hostname: orion
+    container_name: fiware-orion
+    depends_on:
+      - mongo-db
+    expose:
+      - "1026"
+    ports:
+      - "1026:1026"
+    networks:
+      - default
+    command: -dbhost mongo-db -logLevel DEBUG -noCache
+
+  mongo-db:
+    image: mongo:4.4
+    hostname: mongo-db
+    container_name: db-mongo
+    expose:
+      - "27017"
+    ports:
+      - "27017:27017"
+    networks:
+      - default
+    volumes:
+      - ./vol_mongo_db:/vol_mongo_db
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.18.1.0/24
